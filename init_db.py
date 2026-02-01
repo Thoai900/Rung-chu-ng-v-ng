@@ -1,14 +1,16 @@
 import mysql.connector
+import os
 
-db_config = {
-    'user': 'root',
-    'password': 'Thoai12345',
-    'host': 'localhost',
-    'database': 'rung_chuong_vang'
-}
+def get_db_config():
+    return {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'user': os.getenv('DB_USER', 'root'),
+        'password': os.getenv('DB_PASSWORD', 'Thoai12345'),
+        'database': os.getenv('DB_NAME', 'rung_chuong_vang')
+    }
 
 def init_db():
-    conn = mysql.connector.connect(**db_config)
+    conn = mysql.connector.connect(**get_db_config())
     cursor = conn.cursor()
 
     # Create exam_results table

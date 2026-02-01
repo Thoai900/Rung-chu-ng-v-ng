@@ -1,16 +1,22 @@
 from flask import Flask, render_template, request, jsonify, session
 import mysql.connector
 import random
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'rung_chuong_vang_secret_key' # Needed for session
+app.secret_key = os.getenv('SECRET_KEY', 'rung_chuong_vang_secret_key') # Needed for session
 
 # Cấu hình kết nối MySQL
 db_config = {
-    'user': 'root',
-    'password': 'Thoai12345',
-    'host': 'localhost',
-    'database': 'rung_chuong_vang'
+    'user': os.getenv('DB_USER', 'root'),
+    'password': os.getenv('DB_PASSWORD', 'Thoai12345'),
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'database': os.getenv('DB_NAME', 'rung_chuong_vang'),
+    'port': os.getenv('DB_PORT', 3306)
 }
 
 def get_db_connection():
@@ -131,8 +137,14 @@ def get_leaderboard():
         return jsonify({'error': 'Database connection failed'}), 500
         
     cursor = conn.cursor(dictionary=True)
-    # Order by Score DESC, then Time ASC
-    query = "SELECT student_name, class_name, score, total_time, created_at FROM exam_results ORDER BY score DESC, total_time ASC LIMIT 10"
+    # Order by Score DESC, then Time ASC, but group by student to show only best result
+    query = """
+        SELECT student_name, class_name, MAX(score) as score, MIN(total_time) as total_time, MAX(created_at) as created_at
+        FROM exam_results 
+        GROUP BY student_name, class_name 
+        ORDER BY score DESC, total_time ASC 
+        LIMIT 10
+    """
     cursor.execute(query)
     results = cursor.fetchall()
     

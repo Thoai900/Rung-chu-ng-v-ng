@@ -132,7 +132,18 @@
     <script>
         const studentName = localStorage.getItem('studentName');
         if (!studentName) window.location.href = '/';
-        document.getElementById('student-display').innerText = studentName;
+
+        // Display user name and setup logout
+        const studentDisplay = document.getElementById('student-display');
+        studentDisplay.innerHTML = `${studentName} <a href="#" id="logout-btn" style="color: #FF4B4B; text-decoration: none; font-size: 0.9em; margin-left: 10px;">(Đăng xuất)</a>`;
+
+        document.getElementById('logout-btn').onclick = (e) => {
+            e.preventDefault();
+            if (confirm('Bạn có chắc muốn đăng xuất?')) {
+                localStorage.clear();
+                window.location.href = '/';
+            }
+        };
 
         async function loadCategories() {
             try {
