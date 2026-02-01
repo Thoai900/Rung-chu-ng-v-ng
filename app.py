@@ -86,6 +86,7 @@ def login():
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
     category = request.args.get('category')
+    mode = request.args.get('mode') # 'play' or 'review'
     
     conn = get_db_connection()
     if not conn:
@@ -93,11 +94,15 @@ def get_questions():
     
     cursor = conn.cursor(dictionary=True)
     
+    limit_clause = "LIMIT 20"
+    if mode == 'review':
+        limit_clause = "" # No limit for review
+
     if category:
-        query = "SELECT * FROM questions WHERE category = %s ORDER BY RAND() LIMIT 20"
+        query = f"SELECT * FROM questions WHERE category = %s ORDER BY RAND() {limit_clause}"
         cursor.execute(query, (category,))
     else:
-        query = "SELECT * FROM questions ORDER BY RAND() LIMIT 20"
+        query = f"SELECT * FROM questions ORDER BY RAND() {limit_clause}"
         cursor.execute(query)
         
     questions = cursor.fetchall()

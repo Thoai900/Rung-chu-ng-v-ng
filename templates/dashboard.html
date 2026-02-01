@@ -183,9 +183,67 @@
             }
         }
 
+        // Modal Logic
+        let selectedCategoryForModal = null;
+
+        function showModeSelection(category) {
+            selectedCategoryForModal = category;
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            modal.id = 'mode-modal';
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 20px; text-align: center; max-width: 400px; width: 90%; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                    <h2 style="color: #FF4B4B; margin-top: 0;">Chọn Chế Độ</h2>
+                    <p style="color: #666; margin-bottom: 25px;">Bạn muốn chơi hay ôn tập chủ đề này?</p>
+                    
+                    <div style="display: flex; gap: 15px; flex-direction: column;">
+                        <button onclick="confirmMode('play')" style="background: #58CC02; color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 800; font-size: 1.1rem; cursor: pointer; border-bottom: 4px solid #46a302;">
+                            🎮 Chơi Ngay (Tính Điểm)
+                        </button>
+                        <button onclick="confirmMode('review')" style="background: #1CB0F6; color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 800; font-size: 1.1rem; cursor: pointer; border-bottom: 4px solid #1480b3;">
+                            📚 Ôn Tập (Xem Tất Cả)
+                        </button>
+                        <button onclick="closeModal()" style="background: white; color: #888; border: 2px solid #ddd; padding: 10px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px;">
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+                <style>
+                    @keyframes popIn {
+                        from { opacity: 0; transform: scale(0.8); }
+                        to { opacity: 1; transform: scale(1); }
+                    }
+                </style>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('mode-modal');
+            if (modal) modal.remove();
+        }
+
+        function confirmMode(mode) {
+            closeModal();
+            if (selectedCategoryForModal) {
+                localStorage.setItem('selectedCategory', selectedCategoryForModal);
+                window.location.href = `/quiz?category=${encodeURIComponent(selectedCategoryForModal)}&mode=${mode}`;
+            }
+        }
+
         function startQuiz(category) {
-            localStorage.setItem('selectedCategory', category);
-            window.location.href = `/quiz?category=${encodeURIComponent(category)}`;
+            showModeSelection(category);
         }
 
         loadCategories();

@@ -200,6 +200,12 @@
                 <div class="progress-fill" id="progress-bar"></div>
             </div>
             <div class="timer-badge" id="timer">15</div>
+            <div style="margin-left: auto;">
+                <button id="overview-btn" onclick="showOverview()"
+                    style="display:none; background: #1CB0F6; border: none; border-bottom: 3px solid #1480b3; color: white; border-radius: 10px; padding: 5px 15px; font-weight: 800; cursor: pointer;">
+                    📋 Tổng Quan
+                </button>
+            </div>
         </div>
 
         <div class="question-box" id="question-text">
@@ -234,10 +240,20 @@
         // Load Data
         const urlParams = new URLSearchParams(window.location.search);
         const category = urlParams.get('category');
+        const mode = urlParams.get('mode') || 'play'; // 'play' or 'review'
+
+        if (mode === 'review') {
+            document.getElementById('overview-btn').style.display = 'block';
+            document.getElementById('timer').style.display = 'none'; // Hide timer in review? Or keep it? Users usually like no pressure in review. Let's keep it but maybe ignore timeout?
+            // Actually requirement: "người chơi sai vẫn có thể được làm tiếp". Doesn't say "no timer". But Review implies relaxed.
+            // Let's Keep Timer for fun but maybe NOT fail on timeout? Or just Normal Timer but handled differently.
+            // Decision: Keep Timer visual but Handle Timeout differently (Show Answer, Allow Next).
+        }
 
         async function init() {
-            let url = '/api/questions';
-            if (category) url += `?category=${encodeURIComponent(category)}`;
+            let url = '/api/questions?';
+            if (category) url += `category=${encodeURIComponent(category)}&`;
+            if (mode) url += `mode=${mode}`;
 
             try {
                 const res = await fetch(url);
@@ -424,6 +440,11 @@
             document.getElementById('timer').innerText = timeLeft;
             document.getElementById('timer').style.color = '#FF4B4B';
 
+            // In review mode, maybe we don't need strict timer? 
+            // If user wants to think longer. 
+            // Let's keeping it simple: Timer runs. If finishes, treat as Wrong.
+            // In Review mode, Wrong -> Show Answer -> Next.
+
             timer = setInterval(() => {
                 timeLeft--;
                 document.getElementById('timer').innerText = timeLeft;
@@ -434,7 +455,13 @@
                     if (q.type === 'tu_luan') {
                         const input = document.getElementById('answer-input');
                         if (input) input.disabled = true;
-                        checkShortAnswer(''); // Force fail
+
+                        // Force fail
+                        // checkShortAnswer(''); 
+                        // But checkShortAnswer might auto-submit? 
+                        // Let's call dedicated generic Fail
+                        handleWrong(null, q.answer);
+
                     } else {
                         handleWrong(null, q.answer);
                     }
@@ -450,17 +477,48 @@
             const buttons = document.querySelectorAll('.option-btn');
             const correctLetter = correct.charAt(0);
 
+            // Disable all inputs
+            buttons.forEach(b => b.disabled = true);
+            const input = document.getElementById('answer-input');
+            if (input) input.disabled = true;
+
+
+            // Show correct answer visually
             buttons.forEach(b => {
                 if (b.innerText.includes(correct) || b.innerText.startsWith(correctLetter)) {
                     b.classList.add('correct');
                 }
             });
 
-            // Survival Mode -> Game Over
-            setTimeout(() => {
-                alert("Rất tiếc! Bạn đã dừng cuộc chơi 🥲");
-                finishGame();
-            }, 1500);
+            // Allow Next in Review Mode
+            if (mode === 'review') {
+                const nextBtn = document.getElementById('next-btn');
+
+                // If it was a short answer, we might need to show the correct text if not already shown
+                if (!document.querySelector('.option-btn') && input) { // It's short answer
+                    // checkShortAnswer already adds feedback div, but if we came here from Timer or other handleWrong calls:
+                    if (!input.parentElement.querySelector('div')) { // Check if feedback exists
+                        const feedback = document.createElement('div');
+                        feedback.innerHTML = `Đáp án đúng: <strong>${correct}</strong>`;
+                        feedback.style.color = '#FF4B4B';
+                        feedback.style.marginTop = '10px';
+                        feedback.style.fontWeight = 'bold';
+                        input.parentElement.appendChild(feedback);
+                    }
+                }
+
+                nextBtn.style.display = 'block';
+                nextBtn.onclick = nextQuestion;
+
+                // Optional: Alert or small toast "Sai rồi!"? 
+                // Color change to red is enough.
+            } else {
+                // Play Mode -> Game Over
+                setTimeout(() => {
+                    alert("Rất tiếc! Bạn đã dừng cuộc chơi 🥲");
+                    finishGame();
+                }, 1500);
+            }
         }
 
         function nextQuestion() {
@@ -476,18 +534,82 @@
         async function finishGame() {
             const timeSpent = Math.floor((Date.now() - startTime) / 1000);
             try {
-                await fetch('/api/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: studentName,
-                        group: className,
-                        score: score,
-                        time_spent: timeSpent
-                    })
-                });
+                if (mode === 'play') {
+                    // Only save score for Play mode? Or save for Review too but maybe mark it?
+                    // Requirement doesn't specify. Usually Leaderboard is for Play.
+                    // Let's save only for Play for now to avoid polluting leaderboard with Review runs (which might be partial or full but easier).
+                    await fetch('/api/submit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: studentName,
+                            group: className,
+                            score: score,
+                            time_spent: timeSpent
+                        })
+                    });
+                }
             } catch (e) { }
-            window.location.href = '/leaderboard';
+
+            if (mode === 'play') {
+                window.location.href = '/leaderboard';
+            } else {
+                // Review mode finish -> Dashboard or Stay?
+                alert("Hoàn thành ôn tập!");
+                window.location.href = '/dashboard';
+            }
+
+        }
+
+        // Overview Modal
+        function showOverview() {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '2000';
+            modal.id = 'overview-modal';
+
+            let listHtml = '';
+            questions.forEach((q, idx) => {
+                // Determine status
+                let statusIcon = '⚪'; // Unanswered
+                if (idx < currentIndex) {
+                    // We don't really track correct/wrong history in array currently. 
+                    // To do this properly, we should store results.
+                    // For now, let's just show the list content. 
+                    // Or we can check if we want to show answers?
+                    // "được xem tổng quan tất cả các câu hỏi"
+                    statusIcon = '⚫'; // Passed
+                }
+                if (idx === currentIndex) statusIcon = '🔵'; // Current
+
+                listHtml += `
+                    <div style="background: #f9f9f9; padding: 10px; margin-bottom: 10px; border-radius: 10px; text-align: left;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">Câu ${idx + 1}: ${q.content}</div>
+                        <div style="font-size: 0.9em; color: #58CC02;">Đáp án: ${q.answer}</div>
+                    </div>
+                `;
+            });
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 20px; border-radius: 20px; text-align: center; max-width: 600px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+                    <h2 style="color: #FF4B4B; margin-top: 0;">Tổng Quan Câu Hỏi</h2>
+                    <div style="overflow-y: auto; flex-grow: 1; padding-right: 5px;">
+                        ${listHtml}
+                    </div>
+                    <button onclick="document.getElementById('overview-modal').remove()" style="background: #FF4B4B; color: white; border: none; padding: 10px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 15px;">
+                        Đóng
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
 
         init();
