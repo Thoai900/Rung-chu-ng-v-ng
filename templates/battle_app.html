@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đấu Trường Tri Thức</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #131F24;
+            --card-color: #202F36;
+            --text-color: #FFF;
+            --primary-accent: #1CB0F6;
+            --secondary-accent: #FFC700;
+            --correct: #58CC02;
+            --wrong: #FF4B4B;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            box-sizing: border-box;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .active {
+            display: flex;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            color: var(--secondary-accent);
+        }
+
+        .card {
+            background: var(--card-color);
+            padding: 30px;
+            border-radius: 20px;
+            width: 100%;
+            box-shadow: 0 4px 0 #111;
+            margin-bottom: 20px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 15px;
+            border: 2px solid #37464F;
+            background: #131F24;
+            color: white;
+            font-size: 1.1rem;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 15px;
+            border: none;
+            border-bottom: 4px solid #116890;
+            background: var(--primary-accent);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:active {
+            margin-top: 12px;
+            border-bottom-width: 2px;
+        }
+
+        button.secondary {
+            background: #FF4B4B;
+            border-bottom-color: #a82020;
+        }
+
+        button.start {
+            background: #58CC02;
+            border-bottom-color: #46a302;
+        }
+
+        .player-list {
+            list-style: none;
+            padding: 0;
+            width: 100%;
+        }
+
+        .player-item {
+            background: #37464F;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Question Styles */
+        .q-box {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .options {
+            display: grid;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .option-btn {
+            background: white;
+            color: #333;
+            border-bottom: 4px solid #ccc;
+            text-align: left;
+        }
+
+        .option-btn.correct {
+            background: var(--correct);
+            color: white;
+            border-color: #46a302;
+        }
+
+        .option-btn.wrong {
+            background: var(--wrong);
+            color: white;
+            border-color: #a82020;
+        }
+
+        /* Leaderboard in Game */
+        .mini-lb {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- LOBBY SCREEN -->
+    <div id="lobby-screen" class="screen active">
+        <h1>⚔️ Đấu Trường</h1>
+
+        <div class="card">
+            <h2>Tạo Phòng</h2>
+            <select id="create-category">
+                <option value="">Đang tải chủ đề...</option>
+            </select>
+            <button onclick="createRoom()" class="start">Tạo Phòng Mới</button>
+        </div>
+
+        <div class="card">
+            <h2>Vào Phòng</h2>
+            <input type="text" id="room-code-input" placeholder="Nhập Mã Phòng (VD: X8Y2Z1)">
+            <button onclick="joinRoom()">Tham Gia</button>
+        </div>
+
+        <button onclick="window.location.href='/dashboard'" class="secondary" style="margin-top:20px">Quay lại
+            Dashboard</button>
+    </div>
+
+    <!-- WAITING SCREEN -->
+    <div id="waiting-screen" class="screen">
+        <h1 id="room-display">Phòng: ...</h1>
+        <div class="card">
+            <h3>Danh sách người chơi:</h3>
+            <ul id="waiting-list" class="player-list"></ul>
+        </div>
+        <div id="host-controls" style="width: 100%; display:none;">
+            <button onclick="startGame()" class="start">Bắt Đầu Trận Đấu 🚀</button>
+        </div>
+        <p id="waiting-msg">Đang chờ chủ phòng bắt đầu...</p>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="screen">
+        <div class="mini-lb" id="ingame-lb"></div>
+
+        <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 20px;">
+            <div id="game-timer" style="color: var(--wrong); font-weight:900; font-size:1.5rem;">15</div>
+            <div id="q-progress">Câu 1/15</div>
+        </div>
+
+        <div class="card">
+            <div id="q-content" class="q-box">...</div>
+        </div>
+
+        <div id="options-container" class="options"></div>
+
+        <div id="tu-luan-input" style="display:none; width: 100%;">
+            <input type="text" id="tl-answer" placeholder="Nhập câu trả lời...">
+            <button onclick="submitTuLuan()">Gửi Đáp Án</button>
+        </div>
+
+        <div id="result-overlay" style="margin-top: 20px; font-weight: bold; font-size: 1.2rem;"></div>
+
+        <button id="host-next-btn" onclick="nextQuestion()"
+            style="display:none; margin-top:20px; background: #FFC700;">Câu Tiếp Theo ➡️</button>
+    </div>
+
+    <!-- END SCREEN -->
+    <div id="end-screen" class="screen">
+        <h1>🏆 Kết Quả Chung Cuộc</h1>
+        <div class="card">
+            <ul id="final-lb" class="player-list"></ul>
+        </div>
+        <button onclick="location.reload()">Chơi Lại</button>
+        <button onclick="window.location.href='/dashboard'" class="secondary">Về Trang Chủ</button>
+    </div>
+
+    <script>
+        const socket = io();
+        const studentName = localStorage.getItem('studentName');
+        if (!studentName) window.location.href = '/';
+
+        let currentRoom = null;
+        let isHost = false;
+        let timerInterval;
+
+        // --- LOBBY LOGIC ---
+
+        async function loadCategories() {
+            try {
+                const res = await fetch('/api/categories');
+                const cats = await res.json();
+                const sel = document.getElementById('create-category');
+                sel.innerHTML = '';
+                cats.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.innerText = c;
+                    sel.appendChild(opt);
+                });
+            } catch (e) { }
+        }
+        loadCategories();
+
+        function createRoom() {
+            const cat = document.getElementById('create-category').value;
+            socket.emit('create_room', { host_name: studentName, category: cat });
+        }
+
+        function joinRoom() {
+            const code = document.getElementById('room-code-input').value;
+            if (!code) return alert("Vui lòng nhập mã phòng!");
+            socket.emit('join_room', { room_code: code, player_name: studentName });
+        }
+
+        socket.on('room_created', (data) => {
+            enterWaitingRoom(data.room_code, data.players, true);
+        });
+
+        socket.on('player_joined', (data) => {
+            // Updated player list
+            if (currentRoom) {
+                updatePlayerList(data.players);
+            } else {
+                // First time join response for joiner (Wait, join_room emits to room, so joiner needs to know room code if not stored)
+                // Actually server emits to room. Joiner socket joins room.
+                // But joiner needs to switch screen.
+                // Let's rely on 'player_joined' containing ME to switch screen? 
+                // Alternatively, Server can emit 'join_success'.
+                // For MVP, if I receive player_joined and I am in lobby, I switch. 
+                // But data doesn't have room code? 
+                // Let's check update in app.py or store room code locally in joinRoom?
+                // app.py emits 'player_joined' to room. 
+                // We should store room code in joinRoom() tentatively? 
+            }
+        });
+
+        // Handling join success better:
+        // When join_room is emitted, server joins socket. 
+        // Then server emits 'player_joined'. 
+        // If I am in lobby, I need to know I successfully joined.
+        // Let's assume if I get player_joined and I'm not in a room, it's MY room.
+
+        socket.on('player_joined', (data) => {
+            // If I am in lobby, transition to waiting.
+            if (document.getElementById('lobby-screen').classList.contains('active')) {
+                const codeInput = document.getElementById('room-code-input').value.toUpperCase();
+                // If I created, I already switched. 
+                // If I joined, I used input.
+                // But wait, createRoom also fires room_created.
+                // So this is for joiners.
+                enterWaitingRoom(codeInput, data.players, false);
+            } else {
+                updatePlayerList(data.players);
+            }
+        });
+
+        socket.on('error', (data) => {
+            alert(data.message);
+        });
+
+        function enterWaitingRoom(code, players, host) {
+            currentRoom = code;
+            isHost = host;
+
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('waiting-screen').classList.add('active');
+
+            document.getElementById('room-display').innerText = `Phòng: ${code}`;
+            if (isHost) {
+                document.getElementById('host-controls').style.display = 'block';
+                document.getElementById('waiting-msg').style.display = 'none';
+            }
+            updatePlayerList(players);
+        }
+
+        function updatePlayerList(players) {
+            const list = document.getElementById('waiting-list');
+            list.innerHTML = '';
+            players.forEach(p => {
+                const li = document.createElement('li');
+                li.className = 'player-item';
+                li.innerHTML = `<span>${p.name} ${p.is_host ? '👑' : ''}</span> <span>${p.score} ⭐️</span>`;
+                list.appendChild(li);
+            });
+        }
+
+        // --- GAME LOGIC ---
+
+        function startGame() {
+            socket.emit('start_game', { room_code: currentRoom });
+        }
+
+        socket.on('new_question', (data) => {
+            // Switch to Game Screen if not already
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('game-screen').classList.add('active');
+
+            // Render Question
+            document.getElementById('q-content').innerText = data.question;
+            document.getElementById('q-progress').innerText = `Câu ${data.index}/${data.total}`;
+            document.getElementById('result-overlay').innerText = '';
+            document.getElementById('host-next-btn').style.display = 'none';
+
+            const optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = '';
+            const tlInput = document.getElementById('tu-luan-input');
+
+            if (data.type === 'tu_luan') {
+                tlInput.style.display = 'block';
+                document.getElementById('tl-answer').value = '';
+                document.getElementById('tl-answer').disabled = false;
+            } else {
+                tlInput.style.display = 'none';
+                const opts = data.options.split(';');
+                opts.forEach(o => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = o;
+                    btn.onclick = () => submitAnswer(o, btn);
+                    optsContainer.appendChild(btn);
+                });
+            }
+
+            // Timer
+            let timeLeft = data.time_limit;
+            document.getElementById('game-timer').innerText = timeLeft;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('game-timer').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    disableInputs();
+                    // Host should ideally trigger Next or Server auto-next?
+                    // For now, allow Host to see "Next" button.
+                    if (isHost) document.getElementById('host-next-btn').style.display = 'block';
+                }
+            }, 1000);
+        });
+
+        function submitAnswer(ans, btn) {
+            disableInputs();
+            if (btn) btn.style.background = '#FFC700'; // Selected state
+
+            socket.emit('submit_answer', { room_code: currentRoom, answer: ans });
+        }
+
+        function submitTuLuan() {
+            const val = document.getElementById('tl-answer').value;
+            if (val.trim()) submitAnswer(val, null);
+        }
+
+        function disableInputs() {
+            document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+            document.getElementById('tl-answer').disabled = true;
+        }
+
+        socket.on('answer_result', (data) => {
+            const overlay = document.getElementById('result-overlay');
+            if (data.correct) {
+                overlay.innerText = "🎉 Chính xác! +10 điểm";
+                overlay.style.color = "#58CC02";
+                confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+            } else {
+                overlay.innerText = `😢 Sai rồi! Đáp án: ${data.correct_answer}`;
+                overlay.style.color = "#FF4B4B";
+            }
+            // If I am host, show Next button (if everyone answered? Or just always allow host to skip)
+            if (isHost) document.getElementById('host-next-btn').style.display = 'block';
+        });
+
+        socket.on('update_leaderboard', (data) => {
+            // Update mini-lb
+            const div = document.getElementById('ingame-lb');
+            div.innerHTML = data.leaderboard.map(p => `${p.name}: ${p.score}`).join('<br>');
+        });
+
+        function nextQuestion() {
+            socket.emit('next_question', { room_code: currentRoom });
+        }
+
+        socket.on('game_over', (data) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('end-screen').classList.add('active');
+
+            const list = document.getElementById('final-lb');
+            list.innerHTML = '';
+
+            data.leaderboard.forEach((p, index) => {
+                const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
+                const li = document.createElement('li');
+                li.className = 'player-item';
+                li.innerHTML = `<span>${medal} ${p.name}</span> <span>${p.score} ⭐️</span>`;
+                if (index === 0) li.style.background = 'linear-gradient(45deg, #FFC700, #FFEA85)';
+                list.appendChild(li);
+            });
+
+            if (data.leaderboard[0].name === studentName) {
+                confetti({ particleCount: 200, spread: 100 });
+            }
+        });
+
+    </script>
+</body>
+
+</html>

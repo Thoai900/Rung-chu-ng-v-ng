@@ -3,254 +3,869 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
+    <title>Admin Dashboard - Rung Chuông Vàng</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
+        :root {
+            --primary: #4e73df;
+            --secondary: #858796;
+            --success: #1cc88a;
+            --info: #36b9cc;
+            --warning: #f6c23e;
+            --danger: #e74a3b;
+            --light: #f8f9fc;
+            --dark: #5a5c69;
+        }
+
         body {
             font-family: 'Nunito', sans-serif;
             margin: 0;
-            background: #f4f4f9;
+            background: #f8f9fc;
             display: flex;
+            height: 100vh;
+            overflow: hidden;
         }
 
+        /* Sidebar */
         .sidebar {
             width: 250px;
-            background: #333;
+            background: #4e73df;
+            background: linear-gradient(180deg, #4e73df 10%, #224abe 100%);
             color: white;
-            height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s;
         }
 
-        .content {
-            flex-grow: 1;
-            padding: 30px;
-            overflow-y: auto;
-            height: 100vh;
+        .sidebar-brand {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            background: rgba(0, 0, 0, 0.1);
         }
 
-        h2 {
-            margin-top: 0;
+        .sidebar-nav {
+            padding: 20px 0;
+            flex: 1;
         }
 
         .nav-item {
-            padding: 10px;
+            padding: 15px 20px;
             cursor: pointer;
-            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            opacity: 0.8;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-item:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item.active {
+            opacity: 1;
+            background: white;
+            color: #4e73df;
+            border-left-color: #224abe;
+        }
+
+        .nav-item i {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        /* Content */
+        .content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .topbar {
+            height: 70px;
+            background: white;
+            box-shadow: 0 .15rem 1.75rem 0 rgba(58, 59, 69, .15);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 30px;
+            z-index: 10;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #5a5c69;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #4e73df;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .main {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        h2 {
+            color: #5a5c69;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        /* Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 .15rem 1.75rem 0 rgba(58, 59, 69, .15);
+            border-left: 5px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stat-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 0.8rem;
+            text-transform: uppercase;
             margin-bottom: 5px;
         }
 
-        .nav-item:hover,
-        .nav-item.active {
-            background: #555;
+        .stat-value {
+            color: #5a5c69;
+            font-size: 1.5rem;
+            font-weight: bold;
         }
 
-        .card {
+        .stat-icon {
+            font-size: 2rem;
+            color: #dddfeb;
+        }
+
+        /* Tables and Panels */
+        .panel {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 .15rem 1.75rem 0 rgba(58, 59, 69, .15);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .panel-header {
+            padding: 15px 20px;
+            background: #f8f9fc;
+            border-bottom: 1px solid #e3e6f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            color: #4e73df;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
         }
 
         th,
         td {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
+            padding: 12px 20px;
             text-align: left;
+            border-bottom: 1px solid #e3e6f0;
         }
 
         th {
-            background: #eee;
+            background-color: #f8f9fc;
+            color: #5a5c69;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
         }
 
+        tr:hover {
+            background-color: #f8f9fc;
+        }
+
+        /* Buttons & Forms */
         .btn {
-            padding: 5px 10px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 3px;
+            border-radius: 4px;
             cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
             color: white;
-            margin-right: 5px;
+            font-size: 0.9rem;
         }
 
-        .btn-edit {
-            background: #FFC700;
-            color: #000;
+        .btn-primary {
+            background: var(--primary);
         }
 
-        .btn-delete {
-            background: #FF4B4B;
+        .btn-success {
+            background: var(--success);
         }
 
-        .btn-approve {
-            background: #58CC02;
+        .btn-danger {
+            background: var(--danger);
         }
 
-        .btn-reject {
-            background: #FF4B4B;
+        .btn-warning {
+            background: var(--warning);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+        }
+
+        .btn:hover {
+            filter: brightness(0.9);
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 10px;
+            border: 1px solid #d1d3e2;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            background: #fff;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e3e6f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e3e6f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close-btn:hover {
+            color: #555;
         }
 
         .hidden {
-            display: none;
+            display: none !important;
+        }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
 
 <body>
 
+    <div id="loading-overlay" class="hidden">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--primary)"></i>
+    </div>
+
+    <!-- Sidebar -->
     <div class="sidebar">
-        <h3>Quản Trị</h3>
-        <div class="nav-item active" onclick="showTab('questions')">Ngân Hàng Câu Hỏi</div>
-        {% if role == 'super_admin' %}
-        <div class="nav-item" onclick="showTab('approvals')">Phê Duyệt Thay Đổi</div>
-        {% endif %}
-        <div class="nav-item" style="margin-top: auto; color: #aaa;" onclick="alert('Đăng xuất chưa làm!')">Đăng Xuất
+        <div class="sidebar-brand">
+            <i class="fas fa-crown" style="margin-right: 10px;"></i> RCV ADMIN
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-item active" onclick="switchTab('overview')">
+                <i class="fas fa-tachometer-alt"></i> Tổng Quan
+            </div>
+            <div class="nav-item" onclick="switchTab('questions')">
+                <i class="fas fa-question-circle"></i> Ngân Hàng Câu Hỏi
+            </div>
+            <div class="nav-item" onclick="switchTab('users')">
+                <i class="fas fa-users"></i> Người Dùng
+            </div>
+            <div class="nav-item" onclick="switchTab('rooms')">
+                <i class="fas fa-gamepad"></i> Phòng Đấu
+            </div>
+            {% if role == 'super_admin' %}
+            <div class="nav-item" onclick="switchTab('approvals')">
+                <i class="fas fa-check-double"></i> Phê Duyệt
+            </div>
+            {% endif %}
+        </div>
+        <div class="sidebar-footer">
+            <div class="nav-item"
+                style="justify-content: center; background: rgba(255,255,255,0.2); border-radius: 5px;"
+                onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Đăng Xuất
+            </div>
         </div>
     </div>
 
+    <!-- Main Content -->
     <div class="content">
-        <!-- Question Bank Tab -->
-        <div id="tab-questions">
-            <h2>Ngân Hàng Câu Hỏi</h2>
-            <div class="card">
-                <button class="btn" style="background:#333;" onclick="alert('Tính năng Thêm Mới đang phát triển!')">+
-                    Thêm Câu Hỏi</button>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Chủ Đề</th>
-                            <th>Câu Hỏi</th>
-                            <th>Đáp Án</th>
-                            <th>Hành Động</th>
-                        </tr>
-                    </thead>
-                    <tbody id="question-list">
-                        <!-- Loaded via JS -->
-                    </tbody>
-                </table>
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="user-info">
+                <span>Xin chào, <b>{{ role }}</b></span>
+                <div class="user-avatar">AD</div>
             </div>
         </div>
 
-        <!-- Approvals Tab -->
-        <div id="tab-approvals" class="hidden">
-            <h2>Phê Duyệt Thay Đổi (Super Admin)</h2>
-            <div class="card">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Người Yêu Cầu</th>
-                            <th>Hành Động</th>
-                            <th>Nội Dung</th>
-                            <th>Xử Lý</th>
-                        </tr>
-                    </thead>
-                    <tbody id="approval-list">
-                        <!-- Loaded via JS -->
-                    </tbody>
-                </table>
+        <!-- Main View Area -->
+        <div class="main">
+
+            <!-- OVERVIEW TAB -->
+            <div id="tab-overview" class="tab-pane">
+                <h2>Tổng Quan Hệ Thống</h2>
+                <div class="stats-grid">
+                    <div class="stat-card" style="border-left-color: var(--primary);">
+                        <div class="stat-text">
+                            <span class="stat-label">Câu Hỏi</span>
+                            <span class="stat-value" id="stat-questions">0</span>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-question text-gray-300"></i></div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: var(--success);">
+                        <div class="stat-text">
+                            <span class="stat-label">Học Sinh</span>
+                            <span class="stat-value" id="stat-students">0</span>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-user-graduate text-gray-300"></i></div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: var(--warning);">
+                        <div class="stat-text">
+                            <span class="stat-label">Phòng Đang Chơi</span>
+                            <span class="stat-value" id="stat-rooms">0</span>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-gamepad text-gray-300"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUESTIONS TAB -->
+            <div id="tab-questions" class="tab-pane hidden">
+                <h2>Quản Lý Câu Hỏi</h2>
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>Danh Sách Câu Hỏi</span>
+                        <button class="btn btn-primary" onclick="openModal('create')"><i class="fas fa-plus"></i> Thêm
+                            Mới</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Chủ Đề</th>
+                                    <th>Nội Dung</th>
+                                    <th>Loại</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="question-list">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USERS TAB -->
+            <div id="tab-users" class="tab-pane hidden">
+                <h2>Quản Lý Người Dùng</h2>
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>Danh Sách Học Sinh</span>
+                        <button class="btn btn-secondary btn-sm" onclick="loadUsers()"><i
+                                class="fas fa-sync"></i></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Họ Tên</th>
+                                    <th>Lớp</th>
+                                    <th>Đăng Nhập Cuối</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROOMS TAB -->
+            <div id="tab-rooms" class="tab-pane hidden">
+                <h2>Quản Lý Phòng Đấu</h2>
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>Phòng Đang Hoạt Động</span>
+                        <button class="btn btn-secondary btn-sm" onclick="loadRooms()"><i
+                                class="fas fa-sync"></i></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã Phòng</th>
+                                    <th>Chủ Phòng</th>
+                                    <th>Chủ Đề</th>
+                                    <th>Người Chơi</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="room-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- APPROVALS TAB -->
+            <div id="tab-approvals" class="tab-pane hidden">
+                <h2>Yêu Cầu Phê Duyệt</h2>
+                <div class="panel">
+                    <div class="panel-header">
+                        <span>Danh Sách Thay Đổi Chờ Duyệt</span>
+                        <button class="btn btn-secondary btn-sm" onclick="loadPending()"><i
+                                class="fas fa-sync"></i></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Admin</th>
+                                    <th>Loại</th>
+                                    <th>Nội Dung</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approval-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modalTitle">Thêm Câu Hỏi</span>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="q_id">
+
+                <label>Chủ Đề</label>
+                <input type="text" id="q_category" placeholder="Ví dụ: Lịch Sử, Toán Học...">
+
+                <label>Loại Câu Hỏi</label>
+                <select id="q_type" onchange="toggleOptions()">
+                    <option value="trac_nghiem">Trắc Nghiệm</option>
+                    <option value="tu_luan">Tự Luận</option>
+                </select>
+
+                <label>Nội Dung Câu Hỏi</label>
+                <textarea id="q_content" rows="3" placeholder="Nhập câu hỏi..."></textarea>
+
+                <div id="options-group">
+                    <label>Các Lựa Chọn (cách nhau bởi dấu chấm phẩy ;)</label>
+                    <input type="text" id="q_options" placeholder="A. ...; B. ...">
+                </div>
+
+                <label>Đáp Án Đúng</label>
+                <input type="text" id="q_answer" placeholder="Nhập đáp án đúng chính xác">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+                <button class="btn btn-primary" onclick="saveQuestion()">Lưu</button>
             </div>
         </div>
     </div>
 
     <script>
         const role = "{{ role }}";
+        let currentTab = 'overview';
 
-        function showTab(tabName) {
-            document.getElementById('tab-questions').classList.add('hidden');
-            document.getElementById('tab-approvals').classList.add('hidden');
+        // --- Navigation ---
+        function switchTab(tab) {
+            currentTab = tab;
+            // Highlight nav
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const nav = document.querySelector(`.nav-item[onclick="switchTab('${tab}')"]`);
+            if (nav) nav.classList.add('active');
 
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            // Show content
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+
+            // trigger load
+            if (tab === 'overview') loadStats();
+            if (tab === 'questions') loadQuestions();
+            if (tab === 'users') loadUsers();
+            if (tab === 'rooms') loadRooms();
+            if (tab === 'approvals') loadPending();
         }
 
+        async function api(url, method = "GET", body = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            if (body) options.body = JSON.stringify(body);
+
+            try {
+                const res = await fetch(url, options);
+                if (res.status === 401) {
+                    window.location.href = '/admin/login';
+                    return null;
+                }
+                return await res.json();
+            } catch (err) {
+                alert("Lỗi kết nối: " + err);
+                return null;
+            }
+        }
+
+        // --- Overview ---
+        async function loadStats() {
+            const data = await api('/api/admin/stats');
+            if (data) {
+                document.getElementById('stat-questions').innerText = data.total_questions;
+                document.getElementById('stat-students').innerText = data.total_students;
+                document.getElementById('stat-rooms').innerText = data.active_rooms;
+            }
+        }
+
+        // --- Questions ---
         async function loadQuestions() {
-            const res = await fetch('/api/questions');
-            const data = await res.json();
+            const data = await api('/api/questions?mode=review'); // use review mode to get all
+            if (!data) return;
             const tbody = document.getElementById('question-list');
             tbody.innerHTML = '';
-
             data.forEach(q => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${q.id}</td>
                     <td>${q.category}</td>
-                    <td>${q.content}</td>
-                    <td>${q.answer}</td>
+                    <td>${q.content.substring(0, 50)}...</td>
                     <td>
-                        <button class="btn btn-edit" onclick="requestEdit(${q.id})">Sửa</button>
-                        <button class="btn btn-delete" onclick="requestDelete(${q.id})">Xóa</button>
+                        <span class="badge ${q.type === 'trac_nghiem' ? 'bg-info' : 'bg-warning'}">
+                            ${q.type === 'trac_nghiem' ? 'Trắc Nghiệm' : 'Tự Luận'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" onclick="editQuestion(${q.id})"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                // Store raw data for edit
+                tr.dataset.json = JSON.stringify(q);
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- Users ---
+        async function loadUsers() {
+            const data = await api('/api/admin/users');
+            if (!data) return;
+            const tbody = document.getElementById('user-list');
+            tbody.innerHTML = '';
+            data.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${u.id}</td>
+                    <td>${u.full_name}</td>
+                    <td>${u.class_name}</td>
+                    <td>${new Date(u.login_time).toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        async function deleteUser(id) {
+            if (!confirm("Xóa người dùng này?")) return;
+            await api(`/api/admin/users/${id}`, 'DELETE');
+            loadUsers();
+            loadStats(); // refresh stats
+        }
+
+        // --- Rooms ---
+        async function loadRooms() {
+            const data = await api('/api/admin/rooms');
+            if (!data) return;
+            const tbody = document.getElementById('room-list');
+            tbody.innerHTML = '';
+            if (data.length === 0) tbody.innerHTML = '<tr><td colspan="6">Không có phòng nào đang hoạt động.</td></tr>';
+
+            data.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${r.code}</b></td>
+                    <td>${r.host}</td>
+                    <td>${r.category}</td>
+                    <td>${r.players_count}</td>
+                    <td>${r.state}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="closeRoom('${r.code}')">Đóng Phòng</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function closeRoom(code) {
+            if (!confirm("Buộc đóng phòng này?")) return;
+            await api(`/api/admin/rooms/${code}`, 'DELETE');
+            loadRooms();
+            loadStats();
+        }
+
+        // --- Approvals (Existing Logic Improv) ---
         async function loadPending() {
             if (role !== 'super_admin') return;
-            const res = await fetch('/api/admin/pending');
-            const data = await res.json();
+            const data = await api('/api/admin/pending');
+            if (!data) return;
+            // ... Logic similar to existing but better UI ...
             const tbody = document.getElementById('approval-list');
             tbody.innerHTML = '';
-
-            if (data.length === 0) tbody.innerHTML = '<tr><td colspan="4">Không có yêu cầu nào chờ duyệt.</td></tr>';
+            if (data.length === 0) tbody.innerHTML = '<tr><td colspan="4">Không có yêu cầu chờ duyệt.</td></tr>';
 
             data.forEach(req => {
-                const tr = document.createElement('tr');
                 const content = JSON.parse(req.new_content_json || '{}');
-
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${req.admin_email}</td>
-                    <td><b>${req.action_type}</b> ID: ${req.question_id || 'NEW'}</td>
+                    <td>${req.action_type}</td>
+                    <td>${content.content ? content.content.substring(0, 40) : '...'}</td>
                     <td>
-                        <small>
-                        Q: ${content.content || 'N/A'}<br>
-                        A: ${content.answer || 'N/A'}
-                        </small>
+                        <button class="btn btn-success btn-sm" onclick="approve(${req.id}, 'APPROVE')">Duyệt</button>
+                        <button class="btn btn-danger btn-sm" onclick="approve(${req.id}, 'REJECT')">Hủy</button>
                     </td>
-                    <td>
-                        <button class="btn btn-approve" onclick="process(${req.id}, 'APPROVE')">Duyệt</button>
-                        <button class="btn btn-reject" onclick="process(${req.id}, 'REJECT')">Từ chối</button>
-                    </td>
-                `;
+                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function requestDelete(id) {
-            if (!confirm("Gửi yêu cầu XÓA câu hỏi này?")) return;
-            // In a real app, this would be an API call to '/api/admin/request_change'
-            // For MVP, we simulate or need to implement that API.
-            // Since I haven't implemented request_change API in app.py yet, I'll alert.
-            alert("Đã gửi yêu cầu Xóa tới Super Admin! (API Mock)");
-        }
-
-        function requestEdit(id) {
-            alert("Tính năng Sửa đang phát triển!");
-        }
-
-        async function process(id, action) {
-            if (!confirm(action === 'APPROVE' ? "Duyệt yêu cầu này?" : "Từ chối yêu cầu này?")) return;
-
-            await fetch('/api/admin/approve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ change_id: id, action: action })
-            });
+        async function approve(id, action) {
+            await api('/api/admin/approve', 'POST', { change_id: id, action });
             loadPending();
-            loadQuestions(); // refresh
+            loadQuestions();
         }
 
-        loadQuestions();
-        loadPending();
-    </script>
+        // --- Modal Logic ---
+        function toggleOptions() {
+            const type = document.getElementById('q_type').value;
+            const group = document.getElementById('options-group');
+            if (type === 'tu_luan') group.classList.add('hidden');
+            else group.classList.remove('hidden');
+        }
 
+        function openModal(mode, data = null) {
+            document.getElementById('questionModal').style.display = 'flex';
+            if (mode === 'create') {
+                document.getElementById('modalTitle').innerText = 'Thêm Câu Hỏi Mới';
+                document.getElementById('q_id').value = '';
+                document.getElementById('q_content').value = '';
+                document.getElementById('q_options').value = '';
+                document.getElementById('q_answer').value = '';
+                document.getElementById('q_category').value = '';
+            } else {
+                document.getElementById('modalTitle').innerText = 'Sửa Câu Hỏi';
+                document.getElementById('q_id').value = data.id;
+                document.getElementById('q_content').value = data.content;
+                document.getElementById('q_options').value = data.options || '';
+                document.getElementById('q_answer').value = data.answer;
+                document.getElementById('q_category').value = data.category;
+                document.getElementById('q_type').value = data.type;
+                toggleOptions();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('questionModal').style.display = 'none';
+        }
+
+        function editQuestion(id) {
+            // find data from row
+            const rows = document.querySelectorAll('#question-list tr');
+            for (let row of rows) {
+                if (row.dataset.json && JSON.parse(row.dataset.json).id === id) {
+                    openModal('edit', JSON.parse(row.dataset.json));
+                    break;
+                }
+            }
+        }
+
+        async function saveQuestion() {
+            const id = document.getElementById('q_id').value;
+            const body = {
+                content: document.getElementById('q_content').value,
+                category: document.getElementById('q_category').value,
+                type: document.getElementById('q_type').value,
+                options: document.getElementById('q_options').value,
+                answer: document.getElementById('q_answer').value
+            };
+
+            if (!body.content || !body.answer) return alert("Vui lòng nhập đủ thông tin!");
+
+            if (id) {
+                // UPDATE
+                await api(`/api/admin/questions/${id}`, 'PUT', body);
+            } else {
+                // CREATE
+                await api('/api/admin/questions/create', 'POST', body);
+            }
+            closeModal();
+            loadQuestions();
+            loadStats();
+        }
+
+        async function deleteQuestion(id) {
+            if (!confirm("Xóa câu hỏi này?")) return;
+            await api(`/api/admin/questions/${id}`, 'DELETE');
+            loadQuestions();
+            loadStats();
+        }
+
+        function logout() {
+            fetch('/api/admin/logout', { method: 'POST' })
+                .then(() => window.location.href = '/admin/login');
+        }
+
+        // Init
+        loadStats();
+
+    </script>
 </body>
 
 </html>

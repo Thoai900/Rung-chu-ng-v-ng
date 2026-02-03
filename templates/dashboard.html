@@ -145,6 +145,23 @@
             }
         };
 
+        // Add Battle Mode Button (Injected dynamically or added to HTML)
+        const headerTitle = document.querySelector('.header-title');
+        const battleBtn = document.createElement('button');
+        battleBtn.innerText = '⚔️ Chế độ So Tài';
+        battleBtn.style.marginLeft = '20px';
+        battleBtn.style.padding = '10px 20px';
+        battleBtn.style.borderRadius = '20px';
+        battleBtn.style.border = 'none';
+        battleBtn.style.backgroundColor = '#FFC700';
+        battleBtn.style.color = '#333';
+        battleBtn.style.fontWeight = '900';
+        battleBtn.style.cursor = 'pointer';
+        battleBtn.style.boxShadow = '0 4px 0 #d4a500';
+        battleBtn.onclick = () => window.location.href = '/battle';
+
+        headerTitle.appendChild(battleBtn);
+
         async function loadCategories() {
             try {
                 const response = await fetch('/api/categories');
