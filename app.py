@@ -456,10 +456,11 @@ def handle_create_room(data):
     rooms[room_code] = {
         'host_sid': request.sid,
         'state': 'waiting',
-        'players': { request.sid: { 'name': host_name, 'score': 0, 'answered': False, 'is_host': True } },
+        'players': { request.sid: { 'name': host_name, 'score': 0, 'answered': False, 'is_host': True, 'eliminated': False } },
         'questions': [], # To be loaded
         'current_q_index': 0,
-        'category': category
+        'category': category,
+        'active_players_count': 1
     }
     
     join_room_socket(room_code)
@@ -480,7 +481,8 @@ def handle_join_room(data):
         return
         
     join_room_socket(room_code)
-    room['players'][request.sid] = { 'name': player_name, 'score': 0, 'answered': False, 'is_host': False }
+    room['players'][request.sid] = { 'name': player_name, 'score': 0, 'answered': False, 'is_host': False, 'eliminated': False }
+    room['active_players_count'] += 1
     
     # Broadcast list of players
     player_list = [p for p in room['players'].values()]
@@ -501,20 +503,16 @@ def handle_start_game(data):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # Limit to e.g. 10 or 20 questions for battle
-    if category: # Should always be true
-        query = "SELECT * FROM questions WHERE category = %s ORDER BY RAND() LIMIT 15"
-        cursor.execute(query, (category,))
-    else:
-        query = "SELECT * FROM questions ORDER BY RAND() LIMIT 15"
-        cursor.execute(query)
+    # Battle Mode: Random 10 questions from ALL categories
+    query = "SELECT * FROM questions ORDER BY RAND() LIMIT 10"
+    cursor.execute(query)
         
     room['questions'] = cursor.fetchall()
     cursor.close()
     conn.close()
     
     if not room['questions']:
-        emit('error', {'message': 'Không có câu hỏi cho chủ đề này!'}, room=room_code)
+        emit('error', {'message': 'Không có câu hỏi!'}, room=room_code)
         return
 
     room['state'] = 'playing'
@@ -528,11 +526,10 @@ def send_question(room_code):
     idx = room['current_q_index']
     
     if idx >= len(room['questions']):
-        # Game Over
+        # Game Over: End of questions
         room['state'] = 'finished'
-        # Calculate final ranking
-        sorted_players = sorted(room['players'].values(), key=lambda x: x['score'], reverse=True)
-        emit('game_over', {'leaderboard': sorted_players}, room=room_code)
+        sorted_final = sorted(room['players'].values(), key=lambda x: x['score'], reverse=True)
+        emit('game_over', {'leaderboard': sorted_final, 'reason': 'finished'}, room=room_code)
         return
 
     q = room['questions'][idx]
@@ -540,6 +537,18 @@ def send_question(room_code):
     # Reset answer status
     for p in room['players'].values():
         p['answered'] = False
+        p['current_answer'] = None
+
+    # Only count non-eliminated players for answer tracking
+    active_count = sum(1 for p in room['players'].values() if not p.get('eliminated'))
+    room['should_answer_count'] = active_count
+    
+    # If only 1 player left (and we didn't catch it yet), they win automatically? 
+    # Or we let them play single player? "Rung chuong vang" usually ends.
+    # Logic handled in process_round, but let's check here too to be safe.
+    if active_count <= 1 and len(room['players']) > 1:
+        # Check if we should end
+        pass # Handle in process_result for consistency
 
     emit('new_question', {
         'question': q['content'],
@@ -547,7 +556,8 @@ def send_question(room_code):
         'type': q['type'], # tu_luan or trac_nghiem
         'index': idx + 1,
         'total': len(room['questions']),
-        'time_limit': 15
+        'time_limit': 15,
+        'active_players': active_count
     }, room=room_code)
 
 @socketio.on('submit_answer')
@@ -560,34 +570,97 @@ def handle_answer(data):
         return
         
     player = room['players'][request.sid]
-    if player['answered']: return 
+    if player.get('eliminated') or player['answered']: return 
     
     player['answered'] = True
+    player['current_answer'] = answer
     
-    # Check correctness
+    # Notify host/everyone that this user answered (but hide result)
+    emit('player_answered', {'sid': request.sid}, room=room_code)
+    
+    # Check if all active players answered
+    active_players = [p for p in room['players'].values() if not p.get('eliminated')]
+    answered_count = sum(1 for p in active_players if p['answered'])
+    
+    if answered_count >= len(active_players):
+        process_round_result(room_code)
+
+def process_round_result(room_code):
+    room = rooms.get(room_code)
+    if not room: return
+    
     q = room['questions'][room['current_q_index']]
-    correct = q['answer']
+    correct_content = q['answer']
     
-    is_correct = False
-    if q['type'] == 'tu_luan':
-         if answer.strip().lower() == correct.strip().lower():
-             is_correct = True
-    else:
-         # Multiple choice check
-         choice_prefix = answer.split('.')[0].trim().upper()
-         correct_prefix = correct.split('.')[0].trim().upper()
-         if (answer == correct) or (choice_prefix == correct_prefix):
-             is_correct = True
-             
-    if is_correct:
-        player['score'] += 10
+    # Evaluation
+    eliminated_in_this_round = []
+    
+    active_players = [p for p in room['players'].values() if not p.get('eliminated')]
+    
+    for p in active_players:
+        ans = p.get('current_answer', '')
+        is_correct = False
         
-    # Notify this player of result
-    emit('answer_result', {'correct': is_correct, 'correct_answer': correct, 'new_score': player['score']}, to=request.sid)
+        if q['type'] == 'tu_luan':
+             if ans.strip().lower() == correct_content.strip().lower():
+                 is_correct = True
+        else:
+             # Multiple choice check
+             choice_prefix = ans.split('.')[0].strip().upper() if ans else ''
+             correct_prefix = correct_content.split('.')[0].strip().upper()
+             if (ans == correct_content) or (choice_prefix == correct_prefix):
+                 is_correct = True
+        
+        if is_correct:
+            p['score'] += 10
+        else:
+            p['eliminated'] = True
+            eliminated_in_this_round.append(p['name'])
+            
+    # Remaining active players
+    remaining = [p for p in room['players'].values() if not p.get('eliminated')]
     
-    # Update real-time leaderboard for everyone
-    sorted_players = sorted(room['players'].values(), key=lambda x: x['score'], reverse=True)
-    emit('update_leaderboard', {'leaderboard': sorted_players}, room=room_code)
+    # Broadcast Round Result
+    emit('round_result', {
+        'correct_answer': correct_content,
+        'eliminated': eliminated_in_this_round,
+        'remaining_count': len(remaining),
+        'leaderboard': sorted(room['players'].values(), key=lambda x: x['score'], reverse=True)
+    }, room=room_code)
+    
+    # Check Game Over Conditions
+    if len(remaining) == 1 and len(room['players']) > 1:
+        # WINNER (if multiplayer)
+        room['state'] = 'finished'
+        emit('game_over', {'winner': remaining[0], 'reason': 'last_man'}, room=room_code)
+    elif len(remaining) == 0:
+        # DRAW (All died same round)
+        room['state'] = 'finished'
+        emit('game_over', {'reason': 'draw'}, room=room_code)
+    elif room['current_q_index'] >= len(room['questions']) - 1:
+        # End of questions
+        room['state'] = 'finished'
+        # Sort by Score
+        sorted_final = sorted(room['players'].values(), key=lambda x: x['score'], reverse=True)
+        emit('game_over', {'leaderboard': sorted_final, 'reason': 'finished'}, room=room_code)
+    else:
+        # Auto-trigger next question after 5s
+        socketio.sleep(5)
+        # Check state again in case valid
+        if room['state'] == 'playing':
+             room['current_q_index'] += 1
+             send_question(room_code)
+
+@socketio.on('round_timeout')
+def handle_round_timeout(data):
+    # Host tells us time is up, force process round
+    room_code = data.get('room_code')
+    room = rooms.get(room_code)
+    if room and room['host_sid'] == request.sid:
+         # Double check if round already processed? 
+         # process_round_result is idempotent-ish if answered status reset logic is handled carefully.
+         # But here we rely on 'current_q_index'.
+         process_round_result(room_code)
 
 @socketio.on('next_question')
 def handle_next(data):

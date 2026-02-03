@@ -17,6 +17,7 @@
             --secondary-accent: #FFC700;
             --correct: #58CC02;
             --wrong: #FF4B4B;
+            --wait: #858796;
         }
 
         body {
@@ -91,6 +92,13 @@
             border-bottom-width: 2px;
         }
 
+        button:disabled {
+            background: #555;
+            border-bottom-color: #333;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
         button.secondary {
             background: #FF4B4B;
             border-bottom-color: #a82020;
@@ -115,6 +123,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.3s;
+        }
+
+        .player-item.eliminated {
+            background: #2a2a2a;
+            color: #777;
+            text-decoration: line-through;
         }
 
         /* Question Styles */
@@ -126,7 +141,7 @@
 
         .options {
             display: grid;
-            gap: 10px;
+            gap: 15px;
             width: 100%;
         }
 
@@ -135,6 +150,12 @@
             color: #333;
             border-bottom: 4px solid #ccc;
             text-align: left;
+            font-weight: bold;
+        }
+
+        .option-btn.selected {
+            background: var(--secondary-accent);
+            border-color: #e5b300;
         }
 
         .option-btn.correct {
@@ -160,6 +181,43 @@
             font-size: 0.8rem;
             z-index: 100;
         }
+
+        /* Overlay Messages */
+        #status-bar {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .pulse {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .eliminated-badge {
+            background: var(--wrong);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
     </style>
 </head>
 
@@ -167,12 +225,13 @@
 
     <!-- LOBBY SCREEN -->
     <div id="lobby-screen" class="screen active">
-        <h1>⚔️ Đấu Trường</h1>
+        <h1>⚔️ Đấu Trường Rung Chuông</h1>
 
         <div class="card">
             <h2>Tạo Phòng</h2>
-            <select id="create-category">
-                <option value="">Đang tải chủ đề...</option>
+            <p style="font-size:0.9rem; color:#aaa;">Chế độ: Loại trực tiếp (10 câu hỏi ngẫu nhiên)</p>
+            <select id="create-category" style="display:none;">
+                <option value="">Ngẫu nhiên tổng hợp</option>
             </select>
             <button onclick="createRoom()" class="start">Tạo Phòng Mới</button>
         </div>
@@ -197,7 +256,7 @@
         <div id="host-controls" style="width: 100%; display:none;">
             <button onclick="startGame()" class="start">Bắt Đầu Trận Đấu 🚀</button>
         </div>
-        <p id="waiting-msg">Đang chờ chủ phòng bắt đầu...</p>
+        <p id="waiting-msg" class="pulse">Đang chờ chủ phòng bắt đầu...</p>
     </div>
 
     <!-- GAME SCREEN -->
@@ -205,8 +264,18 @@
         <div class="mini-lb" id="ingame-lb"></div>
 
         <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 20px;">
-            <div id="game-timer" style="color: var(--wrong); font-weight:900; font-size:1.5rem;">15</div>
+            <div id="game-timer" style="color: var(--secondary-accent); font-weight:900; font-size:1.5rem;">15</div>
             <div id="q-progress">Câu 1/15</div>
+        </div>
+
+        <div id="status-bar">
+            Còn lại: <span id="active-count" style="color:var(--correct)">0</span> chiến binh
+        </div>
+
+        <!-- Spectator/Eliminated Warning -->
+        <div id="eliminated-banner"
+            style="display:none; width:100%; padding:10px; background:var(--wrong); font-weight:bold; margin-bottom:10px; border-radius:10px;">
+            💀 BẠN ĐÃ BỊ LOẠI! (Chế độ khán giả)
         </div>
 
         <div class="card">
@@ -222,13 +291,15 @@
 
         <div id="result-overlay" style="margin-top: 20px; font-weight: bold; font-size: 1.2rem;"></div>
 
-        <button id="host-next-btn" onclick="nextQuestion()"
-            style="display:none; margin-top:20px; background: #FFC700;">Câu Tiếp Theo ➡️</button>
+        <p id="wait-others-msg" class="pulse" style="display:none; color: var(--secondary-accent)">⏳ Đang chờ người khác
+            trả lời...</p>
+
     </div>
 
     <!-- END SCREEN -->
     <div id="end-screen" class="screen">
-        <h1>🏆 Kết Quả Chung Cuộc</h1>
+        <h1 id="end-title">🏆 Kết Quả Chung Cuộc</h1>
+        <h3 id="end-reason"></h3>
         <div class="card">
             <ul id="final-lb" class="player-list"></ul>
         </div>
@@ -243,29 +314,13 @@
 
         let currentRoom = null;
         let isHost = false;
+        let isEliminated = false;
         let timerInterval;
 
         // --- LOBBY LOGIC ---
-
-        async function loadCategories() {
-            try {
-                const res = await fetch('/api/categories');
-                const cats = await res.json();
-                const sel = document.getElementById('create-category');
-                sel.innerHTML = '';
-                cats.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c;
-                    opt.innerText = c;
-                    sel.appendChild(opt);
-                });
-            } catch (e) { }
-        }
-        loadCategories();
-
         function createRoom() {
-            const cat = document.getElementById('create-category').value;
-            socket.emit('create_room', { host_name: studentName, category: cat });
+            // Category is None -> Server picks Random All
+            socket.emit('create_room', { host_name: studentName, category: '' });
         }
 
         function joinRoom() {
@@ -279,38 +334,10 @@
         });
 
         socket.on('player_joined', (data) => {
-            // Updated player list
-            if (currentRoom) {
-                updatePlayerList(data.players);
-            } else {
-                // First time join response for joiner (Wait, join_room emits to room, so joiner needs to know room code if not stored)
-                // Actually server emits to room. Joiner socket joins room.
-                // But joiner needs to switch screen.
-                // Let's rely on 'player_joined' containing ME to switch screen? 
-                // Alternatively, Server can emit 'join_success'.
-                // For MVP, if I receive player_joined and I am in lobby, I switch. 
-                // But data doesn't have room code? 
-                // Let's check update in app.py or store room code locally in joinRoom?
-                // app.py emits 'player_joined' to room. 
-                // We should store room code in joinRoom() tentatively? 
-            }
-        });
-
-        // Handling join success better:
-        // When join_room is emitted, server joins socket. 
-        // Then server emits 'player_joined'. 
-        // If I am in lobby, I need to know I successfully joined.
-        // Let's assume if I get player_joined and I'm not in a room, it's MY room.
-
-        socket.on('player_joined', (data) => {
-            // If I am in lobby, transition to waiting.
             if (document.getElementById('lobby-screen').classList.contains('active')) {
+                // If I just joined
                 const codeInput = document.getElementById('room-code-input').value.toUpperCase();
-                // If I created, I already switched. 
-                // If I joined, I used input.
-                // But wait, createRoom also fires room_created.
-                // So this is for joiners.
-                enterWaitingRoom(codeInput, data.players, false);
+                enterWaitingRoom(codeInput, data.players, false); // Best guess if I am the joiner
             } else {
                 updatePlayerList(data.players);
             }
@@ -323,10 +350,8 @@
         function enterWaitingRoom(code, players, host) {
             currentRoom = code;
             isHost = host;
-
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('waiting-screen').classList.add('active');
-
             document.getElementById('room-display').innerText = `Phòng: ${code}`;
             if (isHost) {
                 document.getElementById('host-controls').style.display = 'block';
@@ -341,27 +366,41 @@
             players.forEach(p => {
                 const li = document.createElement('li');
                 li.className = 'player-item';
-                li.innerHTML = `<span>${p.name} ${p.is_host ? '👑' : ''}</span> <span>${p.score} ⭐️</span>`;
+                if (p.eliminated) li.classList.add('eliminated');
+                li.innerHTML = `<span>${p.name} ${p.is_host ? '👑' : ''} ${p.eliminated ? '<span class="eliminated-badge">LOẠI</span>' : ''}</span> <span>${p.score} ⭐️</span>`;
                 list.appendChild(li);
             });
+
+            // Also update ingame list if active
+            const mini = document.getElementById('ingame-lb');
+            mini.innerHTML = players.map(p => `${p.name}: ${p.score} ${p.eliminated ? '💀' : ''}`).join('<br>');
         }
 
         // --- GAME LOGIC ---
-
         function startGame() {
             socket.emit('start_game', { room_code: currentRoom });
         }
 
         socket.on('new_question', (data) => {
-            // Switch to Game Screen if not already
+            // UI Reset
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('game-screen').classList.add('active');
 
-            // Render Question
             document.getElementById('q-content').innerText = data.question;
             document.getElementById('q-progress').innerText = `Câu ${data.index}/${data.total}`;
             document.getElementById('result-overlay').innerText = '';
-            document.getElementById('host-next-btn').style.display = 'none';
+            document.getElementById('wait-others-msg').style.display = 'none';
+
+            // Check Eliminated Status
+            if (isEliminated) {
+                document.getElementById('eliminated-banner').style.display = 'block';
+                disableInputs(true); // Disable hard
+            } else {
+                document.getElementById('eliminated-banner').style.display = 'none';
+                enableInputs();
+            }
+
+            document.getElementById('active-count').innerText = data.active_players;
 
             const optsContainer = document.getElementById('options-container');
             optsContainer.innerHTML = '';
@@ -370,7 +409,7 @@
             if (data.type === 'tu_luan') {
                 tlInput.style.display = 'block';
                 document.getElementById('tl-answer').value = '';
-                document.getElementById('tl-answer').disabled = false;
+                if (!isEliminated) document.getElementById('tl-answer').disabled = false;
             } else {
                 tlInput.style.display = 'none';
                 const opts = data.options.split(';');
@@ -378,32 +417,32 @@
                     const btn = document.createElement('button');
                     btn.className = 'option-btn';
                     btn.innerText = o;
-                    btn.onclick = () => submitAnswer(o, btn);
+                    if (!isEliminated) btn.onclick = () => submitAnswer(o, btn);
+                    else btn.disabled = true;
                     optsContainer.appendChild(btn);
                 });
             }
 
             // Timer
             let timeLeft = data.time_limit;
-            document.getElementById('game-timer').innerText = timeLeft;
+            const timerEl = document.getElementById('game-timer');
+            timerEl.innerText = timeLeft;
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 timeLeft--;
-                document.getElementById('game-timer').innerText = timeLeft;
+                timerEl.innerText = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    disableInputs();
-                    // Host should ideally trigger Next or Server auto-next?
-                    // For now, allow Host to see "Next" button.
-                    if (isHost) document.getElementById('host-next-btn').style.display = 'block';
+                    disableInputs(false);
+                    if (isHost) socket.emit('round_timeout', { room_code: currentRoom }); // Host signals timeout
                 }
             }, 1000);
         });
 
         function submitAnswer(ans, btn) {
-            disableInputs();
-            if (btn) btn.style.background = '#FFC700'; // Selected state
-
+            disableInputs(false);
+            if (btn) btn.classList.add('selected');
+            document.getElementById('wait-others-msg').style.display = 'block';
             socket.emit('submit_answer', { room_code: currentRoom, answer: ans });
         }
 
@@ -412,54 +451,94 @@
             if (val.trim()) submitAnswer(val, null);
         }
 
-        function disableInputs() {
+        function disableInputs(hard) {
             document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
             document.getElementById('tl-answer').disabled = true;
         }
 
-        socket.on('answer_result', (data) => {
-            const overlay = document.getElementById('result-overlay');
-            if (data.correct) {
-                overlay.innerText = "🎉 Chính xác! +10 điểm";
-                overlay.style.color = "#58CC02";
-                confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
-            } else {
-                overlay.innerText = `😢 Sai rồi! Đáp án: ${data.correct_answer}`;
-                overlay.style.color = "#FF4B4B";
-            }
-            // If I am host, show Next button (if everyone answered? Or just always allow host to skip)
-            if (isHost) document.getElementById('host-next-btn').style.display = 'block';
-        });
-
-        socket.on('update_leaderboard', (data) => {
-            // Update mini-lb
-            const div = document.getElementById('ingame-lb');
-            div.innerHTML = data.leaderboard.map(p => `${p.name}: ${p.score}`).join('<br>');
-        });
-
-        function nextQuestion() {
-            socket.emit('next_question', { room_code: currentRoom });
+        function enableInputs() {
+            document.querySelectorAll('.option-btn').forEach(b => b.disabled = false);
+            document.getElementById('tl-answer').disabled = false;
         }
+
+        socket.on('round_result', (data) => {
+            document.getElementById('wait-others-msg').style.display = 'none';
+            const overlay = document.getElementById('result-overlay');
+            clearInterval(timerInterval);
+
+            // Highlight Clean Up
+            const opts = document.querySelectorAll('.option-btn');
+            opts.forEach(btn => {
+                // Highlight Correct
+                if (data.correct_answer.includes(btn.innerText.split('.')[0].trim()) || btn.innerText == data.correct_answer) {
+                    btn.classList.add('correct');
+                } else if (btn.classList.contains('selected')) {
+                    btn.classList.add('wrong');
+                }
+            });
+
+            // Status Map
+            updatePlayerList(data.leaderboard);
+            document.getElementById('active-count').innerText = data.remaining_count;
+
+            // Am I eliminated?
+            if (data.eliminated.includes(studentName)) {
+                isEliminated = true;
+                overlay.innerText = `💀 Bạn đã bị loại! Đáp án đúng: ${data.correct_answer}`;
+                overlay.style.color = "var(--wrong)";
+                document.getElementById('eliminated-banner').style.display = 'block';
+            } else if (!isEliminated) {
+                // I survived
+                overlay.innerText = "🎉 Chính xác! Bạn được đi tiếp.";
+                overlay.style.color = "var(--correct)";
+                confetti({ particleCount: 30, spread: 60, origin: { y: 0.7 } });
+            } else {
+                // Spectator view
+                overlay.innerText = `Đáp án đúng: ${data.correct_answer}`;
+                overlay.style.color = "#fff";
+            }
+        });
+
+        socket.on('player_answered', (data) => {
+            // Maybe show a blip on their name in list?
+            // For now just ignore or play sound
+        });
 
         socket.on('game_over', (data) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('end-screen').classList.add('active');
 
+            let title = "Kết Thúc";
+            let reason = "";
+            let winner = null;
+
+            if (data.reason === 'last_man') {
+                title = "👑 NGƯỜI CHIẾN THẮNG CUỐI CÙNG 👑";
+                winner = data.winner;
+                reason = `Chúc mừng ${winner.name} đã rung được chuông vàng!`;
+                confetti({ particleCount: 300, spread: 150 });
+            } else if (data.reason === 'draw') {
+                title = "⛔ HÒA - TẤT CẢ ĐỀU BỊ LOẠI ⛔";
+                reason = "Không còn ai trên sàn đấu!";
+            } else {
+                title = "🏁 HẾT CÂU HỎI";
+                reason = "Tổng kết điểm số";
+            }
+
+            document.getElementById('end-title').innerText = title;
+            document.getElementById('end-reason').innerText = reason;
+
             const list = document.getElementById('final-lb');
             list.innerHTML = '';
 
-            data.leaderboard.forEach((p, index) => {
-                const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
+            const lb = data.leaderboard || (winner ? [winner] : []);
+            lb.forEach((p, index) => {
                 const li = document.createElement('li');
                 li.className = 'player-item';
-                li.innerHTML = `<span>${medal} ${p.name}</span> <span>${p.score} ⭐️</span>`;
-                if (index === 0) li.style.background = 'linear-gradient(45deg, #FFC700, #FFEA85)';
+                li.innerHTML = `<span>#${index + 1} ${p.name} ${p.eliminated ? '(Loại)' : ''}</span> <span>${p.score} ⭐️</span>`;
+                if (index === 0 && !p.eliminated) li.style.background = 'linear-gradient(45deg, #FFC700, #FFEA85)';
                 list.appendChild(li);
             });
-
-            if (data.leaderboard[0].name === studentName) {
-                confetti({ particleCount: 200, spread: 100 });
-            }
         });
 
     </script>
